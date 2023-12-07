@@ -146,6 +146,27 @@ public class AutoModeP1TensorFlow extends LinearOpMode {
         // Note: Reverse movement is obtained by setting a negative distance (not speed)
 
         if(isLeft){
+            // Move forward
+            encoderDrive(DRIVE_SPEED,  -15, -15,  -15, -15,  0.75);
+            //Turn to tape
+            encoderDrive(TURN_SPEED, 15, 15, -15, -15, 1.03);
+            // Move forward and place pixel
+            encoderDrive(DRIVE_SPEED, -15, -15, -15, -15, 0.50);
+            armMotorR.setPower(-0.4);
+            armMotorL.setPower(-0.4);
+
+            //Move back
+            sleep(100);
+            encoderDrive(DRIVE_SPEED, 10, 10, 10,10, 0.50);
+
+            //Strafe to the left
+            encoderDrive(DRIVE_SPEED, -30, 30, 30, -30, 0.25);
+            //Drive forward and park
+            encoderDrive(DRIVE_SPEED, -40, -40, -40, -40, 1.2);
+
+            armMotorR.setPower(0);
+            armMotorL.setPower(0);
+            LHand.setPosition(0.3);
 
 
         } else if (isMiddle) {
