@@ -1,1 +1,67 @@
+package org.firstinspires.ftc.teamcode.vision;
 
+import org.opencv.core.Core;
+import org.opencv.core.Mat;
+import org.opencv.core.MatOfPoint;
+import org.opencv.core.Point;
+import org.opencv.core.Scalar;
+import org.opencv.core.Size;
+import org.opencv.imgproc.Imgproc;
+import org.opencv.imgproc.Moments;
+import org.openftc.easyopencv.OpenCvPipeline;
+
+import java.util.ArrayList;
+import java.util.List;
+
+
+public class TestPipe extends OpenCvPipeline {
+
+    @Override
+    public Mat processFrame(Mat input) {
+        Imgproc.cvtColor(input, input, Imgproc.COLOR_BGR2HSV);
+
+        Scalar lowerBlue = new Scalar(10, 100, 100);
+        Scalar upperBlue = new Scalar(100, 255, 255);
+
+        Mat blueMask = new Mat();
+        Mat hierarchy = new Mat();
+        //Create a binary mask to extract the blue color
+        Core.inRange(input, lowerBlue, upperBlue, input);
+        Mat kernal = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(5, 5));
+        Imgproc.morphologyEx(input, input, Imgproc.MORPH_OPEN, kernal);
+        Imgproc.morphologyEx(input, input, Imgproc.MORPH_CLOSE, kernal);
+        drawSections(input);
+        //Find contours in mask
+        List<MatOfPoint> contours = new ArrayList<>();
+        Imgproc.findContours(input, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+
+        //Imgproc.cvtColor(blueMask, blueMask, Imgproc.COLOR_GRAY2BGR);
+
+        //Find largest contour
+        double maxArea = 0;
+        MatOfPoint largestContour = new MatOfPoint();
+
+        for (MatOfPoint contour: contours){
+            double area = Imgproc.contourArea(contour);
+            if (area > maxArea){
+                maxArea = area;
+                largestContour = contour;
+            }
+        }
+
+        if(largestContour != null){
+            //Draw a red outline around it
+            Imgproc.drawContours(input, contours, contours.indexOf(largestContour), new Scalar(255, 0, 0), 2);
+        }
+
+        return input;
+    }
+
+    private void drawSections(Mat image){
+        int width = image.cols();
+        int sectionWidth = width/3;
+
+        Imgproc.line(image, new Point(sectionWidth, 0), new Point(sectionWidth, image.rows()), new Scalar(255, 0, 0), 2);
+        Imgproc.line(image, new Point(2 * sectionWidth, 0), new Point(2 * sectionWidth, image.rows()), new Scalar(255, 0, 0), 2);
+    }
+}
