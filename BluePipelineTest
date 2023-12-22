@@ -1,0 +1,130 @@
+package org.firstinspires.ftc.teamcode.vision;
+
+import org.opencv.core.Core;
+import org.opencv.core.Mat;
+import org.opencv.core.MatOfPoint;
+import org.opencv.core.Point;
+import org.opencv.core.Scalar;
+import org.opencv.core.Size;
+import org.opencv.imgproc.Imgproc;
+import org.opencv.imgproc.Moments;
+import org.openftc.easyopencv.OpenCvPipeline;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class BlueDetectionPipeline extends OpenCvPipeline {
+    Mat blueMask = new Mat();
+    Mat hierarchy = new Mat();
+
+    //Blob booleans
+    private boolean isLeft = false;
+    private boolean isMiddle = false;
+    private boolean isRight = false;
+
+    @Override
+    public Mat processFrame(Mat input){
+
+        Mat blueMask = preProcessFrame(input);
+        //Draw the lines
+        drawSections(input);
+
+        //Find contours in mask
+        List<MatOfPoint> contours = new ArrayList<>();
+        Imgproc.findContours(blueMask, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+
+        //Imgproc.cvtColor(blueMask, blueMask, Imgproc.COLOR_GRAY2BGR);
+
+        //Find largest contour
+        double maxArea = 0;
+        MatOfPoint largestContour = new MatOfPoint();
+
+        for (MatOfPoint contour: contours){
+            double area = Imgproc.contourArea(contour);
+            if (area > maxArea){
+                maxArea = area;
+                largestContour = contour;
+            }
+        }
+
+        if(largestContour != null){
+            //Draw a red outline around it
+            Imgproc.drawContours(input, contours, contours.indexOf(largestContour), new Scalar(255, 0, 0), 2);
+        }
+
+        Point centroid = getCentroid(largestContour);
+        determineBlobPosition(centroid, input.cols());
+
+        return input;
+    }
+
+    private Mat preProcessFrame(Mat frame){
+        Mat hsv = new Mat();
+
+        Imgproc.cvtColor(frame, frame, Imgproc.COLOR_BGR2HSV);
+
+        //Define color range of blue in HSV
+        Scalar lowerBlue = new Scalar(90, 100, 100);
+        Scalar upperBlue = new Scalar(150, 255, 255);
+
+        Mat blueMask = new Mat();
+        //Create a binary mask to extract the blue color
+        Core.inRange(frame, lowerBlue, upperBlue, blueMask);
+        //Apply morphological operations to remove noise and enhance the image
+        Mat kernal = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(5, 5));
+        Imgproc.morphologyEx(blueMask, blueMask, Imgproc.MORPH_OPEN, kernal);
+        Imgproc.morphologyEx(blueMask, blueMask, Imgproc.MORPH_CLOSE, kernal);
+
+        return blueMask;
+    }
+
+    private void drawSections(Mat image){
+        int width = image.cols();
+        int sectionWidth = width/3;
+
+        Imgproc.line(image, new Point(sectionWidth, 0), new Point(sectionWidth, image.rows()), new Scalar(255, 0, 0), 2);
+        Imgproc.line(image, new Point(2 * sectionWidth, 0), new Point(2 * sectionWidth, image.rows()), new Scalar(255, 0, 0), 2);
+    }
+
+    private Point getCentroid(MatOfPoint contour){
+        Moments moments = Imgproc.moments(contour);
+        double cX = moments.m10 / moments.m00;
+        double cY = moments.m01 / moments.m00;
+
+        return new Point(cX, cY);
+    }
+
+    private void determineBlobPosition(Point centroid, int imageWidth){
+        int sectionWidth = imageWidth/3;
+        int leftBoundary = 0;
+        int middleBoundary = imageWidth;
+        int rightBoundary = imageWidth * 2;
+
+        if(centroid.x < leftBoundary){
+            // Prop on left
+            isLeft = true;
+            isMiddle = false;
+            isRight = false;
+        } else if (centroid.x > leftBoundary && centroid.x < rightBoundary) {
+            // Prop on middle
+            isLeft = false;
+            isMiddle = true;
+            isRight = false;
+        } else {
+            // Object on right
+            isLeft = false;
+            isMiddle = false;
+            isRight = true;
+        }
+    }
+
+    public boolean isLeft(){
+        return isLeft;
+    }
+    public boolean isMiddle(){
+        return isMiddle;
+    }
+    public boolean isRight(){
+        return isRight;
+    }
+}
